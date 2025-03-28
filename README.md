@@ -15,13 +15,13 @@ Amazon Aurora DSQL.
 2. Execute the [schema.sql](demo-app/schema.sql) on the newly created Amazon Aurora DSQL cluster
 3. The project has been built and tested using below configurations on `x86` architecture
 
-   a. Java - `v17.0.13` and Gradle - `v8.11.1`
+   a. Java - `v17.0.14` and Gradle - `v8.13`
 
     ```shell
     # Install SDKMAN - https://sdkman.io/install/
     curl -s "https://get.sdkman.io" | bash
-    sdk install java 17.0.13-amzn
-    sdk install gradle 8.11.1
+    sdk install java 17.0.14-amzn
+    sdk install gradle 8.13
     ```
    b. Python - `v3.13`
 
@@ -34,7 +34,7 @@ Amazon Aurora DSQL.
     pyenv global 3.13
     ```
 
-   c. AWS CDK - `v2.177.0`
+   c. AWS CDK - `v2.1006.0`
     ```shell
     # Install NVM
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
@@ -43,7 +43,7 @@ Amazon Aurora DSQL.
     nvm install --lts
 
     # Install AWS CDK
-    npm install -g aws-cdk@2.177.0
+    npm install -g aws-cdk@2.1006.0
     ```
 
    d. Install `curl` and `jq`

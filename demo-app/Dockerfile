@@ -3,7 +3,7 @@
 
 # Use Amazon Corretto JDK 17 as the base image
 ARG PLATFORM=linux/arm64
-FROM --platform=${PLATFORM} public.ecr.aws/amazoncorretto/amazoncorretto:17.0.13 AS builder
+FROM --platform=${PLATFORM} public.ecr.aws/amazoncorretto/amazoncorretto:17.0.14 AS builder
 
 # Set working directory
 WORKDIR /app
@@ -23,7 +23,7 @@ COPY src ./src
 RUN ./gradlew build -x test --no-daemon
 
 # Runtime stage
-FROM --platform=${PLATFORM} public.ecr.aws/amazoncorretto/amazoncorretto:17.0.13
+FROM --platform=${PLATFORM} public.ecr.aws/amazoncorretto/amazoncorretto:17.0.14
 
 # Create non-root user
 RUN yum install -y shadow-utils && \
