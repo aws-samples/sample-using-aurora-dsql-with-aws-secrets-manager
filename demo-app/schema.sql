@@ -21,10 +21,10 @@ CREATE TABLE customers
 );
 
 -- Index on first name column
-CREATE INDEX first_name_idx on customers (first_name);
+CREATE INDEX ASYNC first_name_idx on customers (first_name);
 
 -- Index on last name column
-CREATE INDEX last_name_idx on customers (last_name);
+CREATE INDEX ASYNC last_name_idx on customers (last_name);
 
 -- Addresses table
 -- Foreign key is not supported today by Amazon Aurora DSQL
@@ -41,4 +41,4 @@ CREATE TABLE addresses
 );
 
 -- Index on city column
-CREATE INDEX city_idx on addresses (city);
+CREATE INDEX ASYNC city_idx on addresses (city);
