@@ -9,7 +9,7 @@ describe('AuroraDsqlSecretCreationAndRotationStack', () => {
     let app: cdk.App;
     let stack: AuroraDsqlSecretCreationAndRotationStack;
     let template: Template;
-
+    
     beforeEach(() => {
         app = new cdk.App();
         stack = new AuroraDsqlSecretCreationAndRotationStack(app, 'TestStack', {

@@ -6,7 +6,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
-import {Construct} from 'constructs';
+import { Construct } from 'constructs';
 import * as path from 'path';
 
 interface AuroraDsqlSecretCreationAndRotationStackProps extends cdk.StackProps {
@@ -14,6 +14,7 @@ interface AuroraDsqlSecretCreationAndRotationStackProps extends cdk.StackProps {
     logGroupName: string;
     dsqlClusterEndpoint: string;
     dsqlClusterArn: string;
+    applicationRoleArn?: string;
 }
 
 export class AuroraDsqlSecretCreationAndRotationStack extends cdk.Stack {
@@ -57,11 +58,7 @@ export class AuroraDsqlSecretCreationAndRotationStack extends cdk.Stack {
                         'secretsmanager:DescribeSecret',
                         'secretsmanager:GetSecretValue',
                         'secretsmanager:PutSecretValue',
-                        'secretsmanager:UpdateSecretVersionStage',
-                        'secretsmanager:GetResourcePolicy',
-                        'secretsmanager:ListSecretVersionIds',
-                        'secretsmanager:ListSecrets',
-                        'secretsmanager:UpdateSecret'
+                        'secretsmanager:UpdateSecretVersionStage'
                     ],
                     resources: [
                         `arn:aws:secretsmanager:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:secret:${props.secretName}`
@@ -132,12 +129,62 @@ export class AuroraDsqlSecretCreationAndRotationStack extends cdk.Stack {
             }
         });
 
+        // Create a resource policy for the secret to restrict access
+        // These policies allow only the Lambda rotation function and optionally the application role to access the secret
+
+        secret.addToResourcePolicy(new iam.PolicyStatement({
+            effect: iam.Effect.DENY,
+            principals: [
+                new iam.AccountRootPrincipal()
+            ],
+            actions: [
+                'secretsmanager:DeleteSecret'
+            ],
+            resources: ['*']
+        }));
+
+        secret.addToResourcePolicy(new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            principals: [
+                new iam.ServicePrincipal('secretsmanager.amazonaws.com')
+            ],
+            actions: [
+                'secretsmanager:*'
+            ],
+            resources: ['*']
+        }));
+
+        secret.addToResourcePolicy(new iam.PolicyStatement({
+            effect: iam.Effect.DENY,
+            principals: [
+                new iam.AnyPrincipal()
+            ],
+            actions: [
+                'secretsmanager:DescribeSecret',
+                'secretsmanager:GetSecretValue',
+                'secretsmanager:PutSecretValue',
+                'secretsmanager:UpdateSecretVersionStage'
+            ],
+            resources: ['*'],
+            conditions: {
+                'StringNotEquals': {
+                    'aws:PrincipalArn': [
+                        lambdaRole.roleArn,
+                        // Include application role if provided
+                        ...(props.applicationRoleArn ? [props.applicationRoleArn] : [])
+                    ]
+                },
+                'ArnNotLike': {
+                    'aws:PrincipalArn': 'arn:aws:iam::*:role/aws-service-role/secretsmanager.amazonaws.com/*'
+                }
+            }
+        }));
+
         // Add rotation schedule
         secret.addRotationSchedule('AuroraDSQLSecretRotationSchedule', {
             rotationLambda: pythonFunction,
             automaticallyAfter: cdk.Duration.hours(4),
             rotateImmediatelyOnUpdate: true
         });
-
     }
 }

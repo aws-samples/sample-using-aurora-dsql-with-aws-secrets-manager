@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT-0
 
 import * as cdk from 'aws-cdk-lib';
-import {AuroraDsqlSecretCreationAndRotationStack} from '../lib/aurora-dsql-secret-rotation-stack';
+import { AuroraDsqlSecretCreationAndRotationStack } from '../lib/aurora-dsql-secret-rotation-stack';
 
 const app = new cdk.App();
 

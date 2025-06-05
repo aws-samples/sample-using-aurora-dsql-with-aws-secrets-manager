@@ -4,18 +4,21 @@
 package com.amazon.aws.infrastructure.config;
 
 
-import com.amazon.aws.infrastructure.dto.DatabaseSecret;
-import com.amazon.aws.infrastructure.exception.SecretsNotRetrievedException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+
+import com.amazon.aws.infrastructure.dto.DatabaseSecret;
+import com.amazon.aws.infrastructure.exception.SecretsNotRetrievedException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
-
-import java.io.IOException;
+import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException;
 
 /**
  * <p>AWSSecretsManagerConfig is a class that retrieves the secret from AWS Secrets Manager</p>
@@ -36,38 +39,82 @@ public class AWSSecretsManagerConfig {
     }
 
     public DatabaseSecret getSecret() {
-
         String secretId = this.appConfig.getSecretKey();
         DatabaseSecret databaseSecret = null;
-        SecretsManagerClient client = SecretsManagerClient.builder().build();
+        
+        // Use try-with-resources to ensure proper resource cleanup
+        try (SecretsManagerClient client = SecretsManagerClient.builder().build()) {
+            // Creating the secret value for the secretId
+            GetSecretValueRequest secretValueRequest = GetSecretValueRequest.builder()
+                .secretId(secretId)
+                .build();
+                
+            GetSecretValueResponse secretValueResponse;
+            try {
+                secretValueResponse = client.getSecretValue(secretValueRequest);
+            } catch (SecretsManagerException e) {
+                log.error("Failed to retrieve secret: {}", e.getMessage());
+                throw new SecretsNotRetrievedException("Failed to retrieve secret from AWS Secrets Manager");
+            }
 
-        // Creating the secret value for the secretId
-        GetSecretValueRequest secretValueRequest = GetSecretValueRequest.builder().secretId(secretId).build();
-        GetSecretValueResponse secretValueResponse = client.getSecretValue(secretValueRequest);
+            // Initialize secret value holders
+            String secret = secretValueResponse.secretString();
 
-        // Initialize secret value holders
-        String secret = null;
+            // Validate that we received a secret
+            if (secret == null || secret.isEmpty()) {
+                log.error("Retrieved secret is null or empty");
+                throw new SecretsNotRetrievedException("Retrieved secret is null or empty");
+            }
 
-        // Decrypts secret using the associated KMS CMK.
-        // Depending on whether the secret is a string or binary, one of these fields will be populated.
-        if (secretValueResponse.secretString() != null) {
-            secret = secretValueResponse.secretString();
-        }
-
-        // ==================================================================
-        if (null != secret) {
+            // Parse the secret JSON
             ObjectMapper objectMapper = new ObjectMapper();
             try {
                 databaseSecret = objectMapper.readValue(secret, DatabaseSecret.class);
-                log.info("Fetched the secret from AWS secrets manager");
+                log.info("Successfully fetched the secret from AWS Secrets Manager");
+                
+                // Validate required fields in the secret
+                validateDatabaseSecret(databaseSecret);
             } catch (IOException e) {
-                log.error(e.getMessage(), e);
-                throw new SecretsNotRetrievedException(e.getMessage());
+                log.error("Failed to parse secret JSON: {}", e.getMessage());
+                throw new SecretsNotRetrievedException("Failed to parse secret JSON from AWS Secrets Manager");
             }
         }
-        // ==================================================================
 
         return databaseSecret;
     }
+    
+    /**
+     * Validates that the database secret contains all required fields
+     * @param secret The database secret to validate
+     * @throws SecretsNotRetrievedException if any required field is missing
+     */
+    private void validateDatabaseSecret(DatabaseSecret secret) {
+        if (secret == null) {
+            throw new SecretsNotRetrievedException("Database secret is null");
+        }
+        
+        if (secret.username() == null || secret.username().isEmpty()) {
+            throw new SecretsNotRetrievedException("Database username is missing in the secret");
+        }
+        
+        if (secret.password() == null || secret.password().isEmpty()) {
+            throw new SecretsNotRetrievedException("Database password is missing in the secret");
+        }
+        
+        if (secret.host() == null || secret.host().isEmpty()) {
+            throw new SecretsNotRetrievedException("Database host is missing in the secret");
+        }
+        
+        if (secret.engine() == null || secret.engine().isEmpty()) {
+            throw new SecretsNotRetrievedException("Database engine is missing in the secret");
+        }
 
+        if (secret.port() == null || secret.port().isEmpty()) {
+            throw new SecretsNotRetrievedException("Database port is missing in the secret");
+        }
+
+        if (secret.dbname() == null || secret.dbname().isEmpty()) {
+            throw new SecretsNotRetrievedException("Database name is missing in the secret");
+        }
+    }
 }
